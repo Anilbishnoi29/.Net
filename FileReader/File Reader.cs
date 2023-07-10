@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using System.Security.Principal;
 
 namespace ProgressBar
 {
@@ -44,6 +45,13 @@ namespace ProgressBar
                 IntPtr consoleHandle = GetStdHandle(STD_INPUT_HANDLE);
                 int consoleMode;
 
+                if (!IsAdministrator())
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("Please start the application in 'Admin' mode...");
+                    Console.ReadKey();
+                    return;
+                }
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine(@" +-+-+-+-+-+-+-+-+ +-+-+-+-+-+-+ +-+-+-+-+-+-+-+-+-+
  |D|o|c|u|m|e|n|t| |S|e|a|r|c|h| |A|s|s|i|s|t|a|n|t|
@@ -87,38 +95,39 @@ namespace ProgressBar
                         MainSearchFile();
                         SearchAgain = false;
                         Console.WriteLine();
-                        Console.Write("# Enter the 'Yes' for search again and 'No' for Close the application:");
+                        Console.Write("# Enter the 'Y' for search again and 'N' for Close the application:");
                         Console.ForegroundColor = ConsoleColor.Yellow;
                         Console.Write("~");
                         Console.ForegroundColor = ConsoleColor.Green;
                         Console.Write("$ ");
                         Console.ResetColor();
                         CloseTheApp = Console.ReadLine().ToLower().Trim();
-                        if (CloseTheApp != "n" || CloseTheApp != "no" || CloseTheApp != "y" || CloseTheApp != "yes")
+                        if (CloseTheApp == "n" || CloseTheApp == "no")
+                        {
+                            ContinueToSearch = false;
+                            break;
+                        }
+                        if (CloseTheApp != "y" && CloseTheApp != "n")
                         {
                             bool isUserInputCorrect = true;
                             while (isUserInputCorrect)
                             {
                                 Console.WriteLine();
-                                Console.Write("# Enter the 'Yes' for search again and 'No' for Close the application:");
+                                Console.Write("# Enter the 'Y' for search again and 'N' for Close the application:");
                                 Console.ForegroundColor = ConsoleColor.Yellow;
                                 Console.Write("~");
                                 Console.ForegroundColor = ConsoleColor.Green;
                                 Console.Write("$ ");
                                 Console.ResetColor();
                                 CloseTheApp = Console.ReadLine().ToLower().Trim();
-                                if (CloseTheApp == "n" || CloseTheApp == "no" || CloseTheApp == "y" || CloseTheApp == "yes")
+                                if (CloseTheApp == "n" || CloseTheApp == "y")
                                 {
                                     isUserInputCorrect = false;
                                     break;
                                 }
                             }
                         }
-                        if (CloseTheApp == "n" || CloseTheApp == "no")
-                        {
-                            ContinueToSearch = false;
-                            break;
-                        }
+
                         SearchAgain = true;
                         Console.WriteLine();
                         //Console.WriteLine("Compeleted");
@@ -158,13 +167,39 @@ namespace ProgressBar
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine();
                 Console.WriteLine();
-                var totalSearchingTimeTaken = DateTime.Now.Subtract(SearchingTime);
+                DateTime dateTime = DateTime.Now;
+                var totalSearchingTimeTaken = dateTime.Subtract(SearchingTime);//.ToString("HH:mm:ss.SSS");
                 int hours = totalSearchingTimeTaken.Hours;
                 int minutes = totalSearchingTimeTaken.Minutes;
                 int seconds = totalSearchingTimeTaken.Seconds;
-
-                Console.WriteLine("# Searching compeleted in '" + hours + ":" + minutes + ":" + seconds + "' preparing result...");
-
+                int milliseconds = totalSearchingTimeTaken.Milliseconds;
+                string totalTimeTakenOutput = string.Empty;
+                if (hours == 0 && minutes == 0 && seconds == 0)
+                {
+                    totalTimeTakenOutput = milliseconds + " milliseconds";
+                }
+                if (hours == 0 && minutes == 0)
+                {
+                    totalTimeTakenOutput = seconds + " seconds";
+                }
+                if (hours == 0)
+                {
+                    if(minutes > 0)
+                    {
+                        totalTimeTakenOutput = minutes + " minute and " + seconds + " seconds";
+                    }
+                    else
+                    {
+                        totalTimeTakenOutput =  seconds + " seconds";
+                    }
+                }
+                else
+                {
+                    totalTimeTakenOutput = hours + "H:" + minutes + "M:" + seconds + "S";
+                }
+                Console.WriteLine("# Searching compeleted in [" + totalTimeTakenOutput + "], preparing result...");
+                //Console.WriteLine("# Searching compeleted in [" + totalSearchingTimeTaken + "] time, preparing result...");
+                Console.WriteLine();
                 if (!Directory.Exists(WhereToPutResult)) Directory.CreateDirectory(WhereToPutResult);
                 string outputFile = Path.Combine(WhereToPutResult, WhatToSearch + "-" + DateTime.Now.ToString("MM-dd-yyyy HH:mm:ss").Replace(":", "_") + ".txt");
                 int totalResultFile = 0;
@@ -302,7 +337,7 @@ namespace ProgressBar
                     Console.WriteLine();
                     Console.CursorVisible = false;
 
-                    int consoleLine = Console.CursorTop + 2;
+                    int consoleLine = Console.LargestWindowHeight + 2;
                     Console.SetCursorPosition(1, consoleLine);
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.Write(" ...................................[0%]");
@@ -365,6 +400,7 @@ namespace ProgressBar
                     Console.WriteLine();
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     Console.WriteLine("Searching started...");
+                    SearchingTime = DateTime.Now;
                     Console.WriteLine();
                     Console.CursorVisible = false;
 
@@ -445,6 +481,12 @@ namespace ProgressBar
             }
 
             return count;
+        }
+
+        public static bool IsAdministrator()
+        {
+            return (new WindowsPrincipal(WindowsIdentity.GetCurrent()))
+                      .IsInRole(WindowsBuiltInRole.Administrator);
         }
     }
 }
